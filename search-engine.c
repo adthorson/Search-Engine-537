@@ -18,12 +18,20 @@ typedef struct Container{
 }Container;
 
 
-// Words to be indexed along with metadata
-Container pending_words[10];
+Container pending_words[10];    // Words to be indexed along with metadata
+char * scan_buffer[10000];      // Producer/consumer queue
+int scan_count = 0;
 
 char argc_error[83] = "Invalid amount of args!\nUsage: search-engine [indexer_thread_amount] [file-list]\n\n\0";
 char unable_to_open[34] = "Invalid file or unable to open!\n\n\0";
 
+
+add_to_buffer(char * filename) {
+    scan_buffer[scan_count] = malloc((strlen(filename)));
+    scan_buffer[scan_count] = filename;
+    printf("%s",scan_buffer[scan_count]);
+    ++scan_count;
+}
 
 
 int main(int argc, char * argv[]) {
@@ -46,26 +54,20 @@ int main(int argc, char * argv[]) {
 	// How many threads will be indexing
 	int indexer_amount = atoi(argv[1]);
 
-	//BUFFER SIZE??????????????
+	//BUFFER SIZE?
 	char buffer[512];
-    char scan_buffer[1000][512];
-	int line_number = 0, i;
+	int line_number;
 	char * word;
 	char * save_ptr;
 
+    // SCANNER
 	// Read in file names from the list of files a.k.a. file_list
 	while(fgets(buffer, 512, file_list) != NULL) {
-        // code for locking needed
-        // need to account for limited producer/scanner of fixed size buffer
-        
-        memcpy(&scan_buffer[line_number][0], buffer, 512);
-        //scan_buffer[line_number][0] = buffer;
-		printf("%s", scan_buffer[line_number][0]);
-        ++line_number;
+        add_to_buffer(buffer);
 	}
-    //for (i=0; i<line_number;i++)  {
-       //printf("%s\n", scan_buffer[i][0]);
-   // }
+    
+    // INDEXER
+    
 
 	fclose(file_list);
 
