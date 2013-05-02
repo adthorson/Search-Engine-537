@@ -48,13 +48,19 @@ int main(int argc, char * argv[]){
 
 	//BUFFER SIZE??????????????
 	char buffer[512];
+	char * scan_buffer[10000];
 	int line_number;
 	char * word;
 	char * save_ptr;
+	int i = 0;
 
 	// Read in file names from the list of files a.k.a. file_list
 	while(fgets(buffer, 512, file_list) != NULL){
-		printf("%s",buffer);
+		//printf("%s",buffer);
+		scan_buffer[i] = malloc((strlen(buffer)+1) * sizeof(char));
+		scan_buffer[i] = buffer;
+		printf("%s",scan_buffer[i]);
+		++i;
 	}
 
 	fclose(file_list);
