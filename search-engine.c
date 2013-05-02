@@ -26,10 +26,10 @@ char unable_to_open[34] = "Invalid file or unable to open!\n\n\0";
 
 
 
-int main(int argc, char * argv[]){
+int main(int argc, char * argv[]) {
 
 	// Let's try to guarantee proper usage
-	if(argc != 3){
+	if (argc != 3) {
 		write(STDERR_FILENO, argc_error, strlen(argc_error));
 		exit(1);
 	}
@@ -38,7 +38,7 @@ int main(int argc, char * argv[]){
 	file_list = fopen(argv[2],"r");
 	
 	// If file is invalid or isn't loaded for some reason, there is no point of moving on
-	if(file_list == NULL){
+	if (file_list == NULL) {
 		write(STDERR_FILENO, unable_to_open, strlen(unable_to_open));
 		exit(1);
 	}
@@ -48,14 +48,24 @@ int main(int argc, char * argv[]){
 
 	//BUFFER SIZE??????????????
 	char buffer[512];
-	int line_number;
+    char scan_buffer[1000][512];
+	int line_number = 0, i;
 	char * word;
 	char * save_ptr;
 
 	// Read in file names from the list of files a.k.a. file_list
-	while(fgets(buffer, 512, file_list) != NULL){
-		printf("%s",buffer);
+	while(fgets(buffer, 512, file_list) != NULL) {
+        // code for locking needed
+        // need to account for limited producer/scanner of fixed size buffer
+        
+        memcpy(&scan_buffer[line_number][0], buffer, 512);
+        //scan_buffer[line_number][0] = buffer;
+		printf("%s", scan_buffer[line_number][0]);
+        ++line_number;
 	}
+    //for (i=0; i<line_number;i++)  {
+       //printf("%s\n", scan_buffer[i][0]);
+   // }
 
 	fclose(file_list);
 
