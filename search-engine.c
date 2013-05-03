@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,6 +31,35 @@ add_to_buffer(char * filename) {
     printf("%s",scan_buffer[scan_count]);
     ++scan_count;
 }
+
+/*
+ * Activates a single (or multiple) thread by passing in the following parameters.
+ * All threads will stay active until they all concurrently complete.
+ *
+ * @param 	int 	number_of_threads 	: the number of times we want to create this thread
+ * 		  	void 	function_name		: the function to activate
+ *			struct	parameter			: a struct of all parameter the specific function needs
+ *
+ * possible bugs: parameters may not have been written with correct pointers (& or *) 
+ * will fix when we test
+ */
+activate_Multi_Threader(int number_of_threads, void function_name, struct parameter){
+	pthread_t tidp;
+	int i;
+	for(i = 0; i < number_of_threads; i++){
+	//int  pthread_create(pthread_t  *  thread, pthread_attr_t * attr, void *(*start_routine)(void *), void * arg);
+		thread0 = pthread_create(&tidp, NULL, &function_name, (void *) &parameter);
+		if(thread0 != 0) printf("\ncan't create thread\n");
+	}
+	
+	pthread_join(tidp, NULL); 
+
+}
+
+//NOTE NOTE NOTE
+//in order to pass in a method to a threader, YOU NEED TO name your method in this manner
+//add_to_buffer(char * filename)  needs to be
+//void* add_to_buffer(char * filename)
 
 
 int main(int argc, char * argv[]) {
