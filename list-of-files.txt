@@ -15,8 +15,6 @@
 ./.git/hooks/update.sample
 ./.git/description
 ./.git/info/exclude
-./.git/HEAD
-./.git/config
 ./.git/objects/4f/010186b5dbd4e4a7ff1fb59ea3160ae8e5ec80
 ./.git/objects/95/0b8f2087acff196d1a19b4d0e2ec92eb113ab4
 ./.git/objects/6b/8ad21035b83cbb0c189cfedac44ef98d234d65
@@ -30,6 +28,22 @@
 ./.git/objects/3d/c7a79f28ba744725775ad6a0842b0ab3a12a5e
 ./.git/objects/99/24b1ce8341c9579293e17c02c3b42bf7bedd1a
 ./.git/objects/ac/c121c15cde5293117e3a497f85c94ad28d8243
+./.git/objects/49/e7ddbe44aad915635ca9e04076871d24e917c8
+./.git/objects/42/0acb2fb5278c492fbb7cd674e676f8e3564e03
+./.git/objects/bc/a6e486e5927e049be5fda6bda94a3a20c8cc42
+./.git/objects/84/48c4176cfbce98c7b169ba873f34023f1374d2
+./.git/objects/3f/c5030c68e5558ea647427d6f7f788470ab500a
+./.git/objects/2e/fff3ed58282dcf71a6ef22911cfded37075d11
+./.git/objects/28/0748a87a953d7adf98013f3e05f2463155b075
+./.git/objects/dd/bac4e6820510d4714700bd4b2b4cd8f7ec21f2
+./.git/objects/d4/34ba14dc8eaa2c6ad92ed07d4cf37c6a2656d1
+./.git/objects/6a/ebcf81bc17c3b75f59d19a391c5a71ff93cbfb
+./.git/objects/1b/40b46a031a6a7dcacf72f31f2313d29620bae3
+./.git/objects/bd/ba0e4107ac8b3233973a3340c45fffa126a373
+./.git/objects/64/bd9e0904e8d00ec615a5fda1f9333659a02674
+./.git/objects/6e/716ded5f7a488aed00e060ef8a3a13ce00e368
+./.git/HEAD
+./.git/config
 ./.git/index
 ./.git/COMMIT_EDITMSG
 ./.git/logs/refs/heads/master
@@ -48,8 +62,6 @@
 ./Test/.git/hooks/update.sample
 ./Test/.git/description
 ./Test/.git/info/exclude
-./Test/.git/HEAD
-./Test/.git/config
 ./Test/.git/objects/47/e50d7cc054be03da2b3dddfcac986be6b7ed80
 ./Test/.git/objects/56/a5390365a93a70d72bb7b067a14951bdcdb522
 ./Test/.git/objects/6b/8ad21035b83cbb0c189cfedac44ef98d234d65
@@ -57,6 +69,8 @@
 ./Test/.git/objects/4f/010186b5dbd4e4a7ff1fb59ea3160ae8e5ec80
 ./Test/.git/objects/95/0b8f2087acff196d1a19b4d0e2ec92eb113ab4
 ./Test/.git/objects/37/f9baff15b231e7071ef90884c9fdbeb6ea9c2a
+./Test/.git/HEAD
+./Test/.git/config
 ./Test/.git/FETCH_HEAD
 ./Test/.git/logs/refs/heads/master
 ./Test/.git/logs/refs/remotes/Adam/master
@@ -70,3 +84,6 @@
 ./search-engine.c
 ./list-of-files.txt
 ./search-engine.c~
+./search-engine.o
+./index.o
+./search-engine
