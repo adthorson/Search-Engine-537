@@ -34,10 +34,10 @@ void addToBuffer(char * file_name){
 }
 
 
-int main(int argc, char * argv[]){
+int main(int argc, char * argv[]) {
 
 	// Let's try to guarantee proper usage
-	if(argc != 3){
+	if (argc != 3) {
 		write(STDERR_FILENO, argc_error, strlen(argc_error));
 		exit(1);
 	}
@@ -46,7 +46,7 @@ int main(int argc, char * argv[]){
 	file_list = fopen(argv[2],"r");
 	
 	// If file is invalid or isn't loaded for some reason, there is no point of moving on
-	if(file_list == NULL){
+	if (file_list == NULL) {
 		write(STDERR_FILENO, unable_to_open, strlen(unable_to_open));
 		exit(1);
 	}
@@ -73,7 +73,10 @@ int main(int argc, char * argv[]){
 		exit(1);
 	}
 
+	// INDEXER
 
+
+	// SCANNER
 	// Read in file names from the list of files a.k.a. file_list
 	while(!feof(file_list)){
 		sem_wait(&empty_buffer);
@@ -86,6 +89,7 @@ int main(int argc, char * argv[]){
 		sem_post(&mutex_one);
 		sem_post(&full_buffer);
 	}
+        
 
 	fclose(file_list);
 
