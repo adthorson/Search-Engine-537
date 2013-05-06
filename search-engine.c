@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,62 +17,119 @@ char full_error[30] = "Semaphore full_buffer error!\n";
 char empty_error[31] = "Semaphore empty_buffer error!\n";
 char index_thread_error[35] = "Unable to create indexer threads!\n";
 
-char ** scan_buffer;
-
-pthread_t * indexer_threads;
+char scan_buffer[10][512];
 
 sem_t mutex_one;
 sem_t full_buffer;
 sem_t empty_buffer;
 
-int * can_index;
-int buffer_amount;
-int indexer_amount;
+int buffer_amount, i;
+FILE * file_list;
 
 
-void indexing(void * id){
-	do{
-		
-	}while(!feof(file_list));
+void addToBuffer(char * file_name, int buffer_amount)
+{
+    //if (file_name[strlen(file_name) - 1] == '\n') {
+      //  file_name[strlen(file_name) - 1] == '\0';
+    //}
+    
+    //char * dest;
+    strncpy(scan_buffer[buffer_amount], file_name, sizeof(file_name)-1);
+    // USE STRCOPY WHEN INSERTING INTO SCAN_BUFFER
+    strcpy(scan_buffer[buffer_amount], file_name);
+	printf("%s", scan_buffer[buffer_amount]);
 }
 
 
-
-void addToBuffer(char * file_name){
-	//printf("%s",buffer);
-	scan_buffer[buffer_amount] = malloc((strlen(file_name)+1) * sizeof(char));
-	scan_buffer[buffer_amount] = file_name;
-	printf("%s",scan_buffer[buffer_amount]);
-	can_index[buffer_amount] = TRUE;
-	++buffer_amount;
+void removeFromBuffer(int pos)
+{
+    char * file_name;
+    FILE * file;
+    char buffer[512];
+    int line_number;
+    
+    file_name = scan_buffer[pos];
+    
+    printf("File to be indexed: %s", file_name);
+    if ((file = fopen(file_name, "r")) == NULL) {
+        printf("Wasn't able to open: %s", file_name);
+        return;
+    }
+    while (!feof(file)) {
+        int line_number = 0;
+        char * word;
+        char * saveptr;
+        fgets(buffer, 512, file);
+        word = strtok_r(buffer, " \n\t-_!@#$%^&*()_+=,./<>?", &saveptr);
+        while (word != NULL) {
+            insert_into_index(word, file_name, line_number);
+            word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?",&saveptr);
+        }
+        line_number = line_number+1;
+    }
+    fclose(file);
 }
 
 
-
-int activateIndexerThreads(){
-	int i;
-
-	indexer_threads = malloc(indexer_amount * sizeof(pthread_t));	
-	can_index = malloc(indexer_amount * sizeof(int));
-	for(i = 0; i < indexer_amount; ++i){
-		can_index[i] = FALSE;
-		if(pthread_create(&indexer_threads[i], NULL, &indexing, i) != 0)
-			return 1;	
+void startScanning()
+{
+    char buffer[513];
+	char * copy;
+	char ** save_ptr;
+    
+    while(!feof(file_list)) {
+		sem_wait(&empty_buffer);
+		sem_wait(&mutex_one);
+        
+		printf("WAIT\n");
+		buffer_amount = 0;
+        for (buffer_amount = 0; buffer_amount < 10; buffer_amount++) {
+            if (fgets(buffer, 513, file_list) != NULL) {
+		if(buffer[strlen(buffer) - 1] == '\n')
+			buffer[strlen(buffer) - 1] = '\0';
+		printf("\nGot here %d\n",buffer_amount);
+                addToBuffer(buffer, buffer_amount);
+            }
+        }
+		sem_post(&mutex_one);
+		sem_post(&full_buffer);
+        
+	printf("\nCHECK 1\n");
+        for (i=0; i < 10; i++) {
+          printf("scan_buffer[%d]: %s\n",i,scan_buffer[i]);
+        }
+        
+        startIndexing();
 	}
-	
+    
+	fclose(file_list);
 }
 
 
+void startIndexing()
+{
+    sem_wait(&full_buffer);
+    sem_wait(&mutex_one);
+    
+    // Implement whatever algo for multiple indexing threads
+    // this one is for one thread, so it is linear
+    for (i=0; i < 10; i++) {
+        removeFromBuffer(i);
+    }
+    
+    sem_post(&mutex_one);
+    sem_post(&empty_buffer);
+}
 
-int main(int argc, char * argv[]) {
 
+int main(int argc, char * argv[])
+{
 	// Let's try to guarantee proper usage
 	if (argc != 3) {
 		write(STDERR_FILENO, argc_error, strlen(argc_error));
 		exit(1);
 	}
-
-	FILE * file_list;
+    
 	file_list = fopen(argv[2],"r");
 	
 	// If file is invalid or isn't loaded for some reason, there is no point of moving on
@@ -83,53 +139,24 @@ int main(int argc, char * argv[]) {
 	}
 	
 	// How many threads will be indexing
-	indexer_amount = atoi(argv[1]);
-	scan_buffer = malloc(indexer_amount * sizeof(char *));
-
-	char buffer[512];
-	int line_number;
-	char * word;
-	char * save_ptr;
-
-	//printf("BEFORE INIT\n");
-	if(sem_init(&mutex_one, 0, 1) != 0){
+	int indexer_amount = atoi(argv[1]);
+    
+    
+	printf("BEFORE INIT\n");
+	if(sem_init(&mutex_one, 0, 1) != 0) {
 		write(STDERR_FILENO, mutex_one_error, strlen(mutex_one_error));
 		exit(1);
 	}
-	if(sem_init(&full_buffer, 0, 0) != 0){
+	if(sem_init(&full_buffer, 0, 0) != 0) {
 		write(STDERR_FILENO, full_error, strlen(full_error));
 		exit(1);
 	}
-	if(sem_init(&empty_buffer, 0, 1) != 0){
+	if(sem_init(&empty_buffer, 0, 1) != 0) {
 		write(STDERR_FILENO, empty_error, strlen(empty_error));
 		exit(1);
 	}
-
-	// INDEXER
-	if(activateIndexerThreads() != 0){
-	 	write(STDERR_FILENO, index_thread_error, strlen(index_thread_error));
-		exit(1);
-	}
-
-	// SCANNER
-	// Read in file names from the list of files a.k.a. file_list
-	while(!feof(file_list)){
-		sem_wait(&empty_buffer);
-		sem_wait(&mutex_one);
-		printf("WAIT\n");
-		buffer_amount = 0;
-		while((fgets(buffer, 512, file_list) != NULL) && (buffer_amount < indexer_amount)){;
-			addToBuffer(buffer);
-		}
-		sem_post(&mutex_one);
-		sem_post(&full_buffer);
-	}
-        
-
-	for(i = 0; i < indexer_amount; ++i)
-                pthread_join(indexer_threads[i], NULL);
-
-	fclose(file_list);
-
+    
+    startScanning();
+    
 	return 0;
 }
