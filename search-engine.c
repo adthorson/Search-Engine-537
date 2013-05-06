@@ -22,7 +22,7 @@ char mutex_one_error[28] = "Semaphore mutex_one error!\n";
 char full_error[30] = "Semaphore full_buffer error!\n";
 char empty_error[31] = "Semaphore empty_buffer error!\n";
 
-char scan_buffer[10][512];
+char ** scan_buffer;
 
 sem_t mutex_one;
 sem_t full_buffer;
@@ -38,16 +38,6 @@ void startIndexing();
 
 
 /*
- * Activates a single (or multiple) thread by passing in the following parameters.
- * All threads will stay active until they all concurrently complete.
- *
- * @param 	int 	number_of_threads 	: the number of times we want to create this thread
- * 		  	void 	function_name		: the function to activate
- *			struct	parameter			: a struct of all parameter the specific function needs
- *
- * possible bugs: parameters may not have been written with correct pointers (& or *)
- * will fix when we test
- */
 void activate_Multi_Threader(int number_of_threads, void * function_name, struct parameter param) {
 	pthread_t tidp;
 	int i, thread0;
@@ -59,10 +49,9 @@ void activate_Multi_Threader(int number_of_threads, void * function_name, struct
     if(finished_activations)
         pthread_join(tidp, NULL);
 }
-//NOTE NOTE NOTE
-//in order to pass in a method to a threader, YOU NEED TO name your method in this manner
-//add_to_buffer(char * filename)  needs to be
-//void* add_to_buffer(char * filename)
+*/
+
+
 
 void addToBuffer(char * file_name, int buffer_amount)
 {
@@ -71,6 +60,8 @@ void addToBuffer(char * file_name, int buffer_amount)
     strcpy(scan_buffer[buffer_amount], file_name);
 	printf("%s", scan_buffer[buffer_amount]);
 }
+
+
 
 void removeFromBuffer(int pos)
 {
@@ -173,6 +164,12 @@ int main(int argc, char * argv[])
 	
 	// How many threads will be indexing
 	int indexer_amount = atoi(argv[1]);
+
+	scan_buffer = malloc(indexer_amount * 10 * sizeof(char *));
+	int j;	
+	for(j = 0; j < indexer_amount * 10; ++j){
+		scan_buffer[j] = malloc(513 * sizeof(char *));
+	}
     
     // Initialize hashtable
     int hash_init = init_index();
