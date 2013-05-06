@@ -8,20 +8,34 @@
 
 #include "index.h"
 
+#define TRUE 1
+#define FALSE 0
 
 char argc_error[83] = "Invalid amount of args!\nUsage: search-engine [indexer_thread_amount] [file-list]\n\n\0";
 char unable_to_open[34] = "Invalid file or unable to open!\n\n\0";
 char mutex_one_error[28] = "Semaphore mutex_one error!\n";
 char full_error[30] = "Semaphore full_buffer error!\n";
 char empty_error[31] = "Semaphore empty_buffer error!\n";
+char index_thread_error[35] = "Unable to create indexer threads!\n";
 
-char * scan_buffer[10];
+char ** scan_buffer;
+
+pthread_t * indexer_threads;
 
 sem_t mutex_one;
 sem_t full_buffer;
 sem_t empty_buffer;
 
+int * can_index;
 int buffer_amount;
+int indexer_amount;
+
+
+void indexing(void * id){
+	do{
+		
+	}while(!feof(file_list));
+}
 
 
 
@@ -30,8 +44,25 @@ void addToBuffer(char * file_name){
 	scan_buffer[buffer_amount] = malloc((strlen(file_name)+1) * sizeof(char));
 	scan_buffer[buffer_amount] = file_name;
 	printf("%s",scan_buffer[buffer_amount]);
+	can_index[buffer_amount] = TRUE;
 	++buffer_amount;
 }
+
+
+
+int activateIndexerThreads(){
+	int i;
+
+	indexer_threads = malloc(indexer_amount * sizeof(pthread_t));	
+	can_index = malloc(indexer_amount * sizeof(int));
+	for(i = 0; i < indexer_amount; ++i){
+		can_index[i] = FALSE;
+		if(pthread_create(&indexer_threads[i], NULL, &indexing, i) != 0)
+			return 1;	
+	}
+	
+}
+
 
 
 int main(int argc, char * argv[]) {
@@ -52,7 +83,8 @@ int main(int argc, char * argv[]) {
 	}
 	
 	// How many threads will be indexing
-	int indexer_amount = atoi(argv[1]);
+	indexer_amount = atoi(argv[1]);
+	scan_buffer = malloc(indexer_amount * sizeof(char *));
 
 	char buffer[512];
 	int line_number;
@@ -74,7 +106,10 @@ int main(int argc, char * argv[]) {
 	}
 
 	// INDEXER
-
+	if(activateIndexerThreads() != 0){
+	 	write(STDERR_FILENO, index_thread_error, strlen(index_thread_error));
+		exit(1);
+	}
 
 	// SCANNER
 	// Read in file names from the list of files a.k.a. file_list
@@ -83,13 +118,16 @@ int main(int argc, char * argv[]) {
 		sem_wait(&mutex_one);
 		printf("WAIT\n");
 		buffer_amount = 0;
-		while((fgets(buffer, 512, file_list) != NULL) && (buffer_amount < 10)){;
+		while((fgets(buffer, 512, file_list) != NULL) && (buffer_amount < indexer_amount)){;
 			addToBuffer(buffer);
 		}
 		sem_post(&mutex_one);
 		sem_post(&full_buffer);
 	}
         
+
+	for(i = 0; i < indexer_amount; ++i)
+                pthread_join(indexer_threads[i], NULL);
 
 	fclose(file_list);
 
