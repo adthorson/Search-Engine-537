@@ -37,35 +37,7 @@ void startIndexing();
 void createIndexThreads(pthread_t * threads, int num_threads);
 void addToBuffer(char * file_name, int buffer_amount);
 void removeFromBuffer(int pos);
-
-
-/*
- * Activates a single (or multiple) thread by passing in the following parameters.
- * All threads will stay active until they all concurrently complete.
- *
- * @param 	int 	number_of_threads 	: the number of times we want to create this thread
- * 		  	void 	function_name		: the function to activate
- *			struct	parameter			: a struct of all parameter the specific function needs
- *
- * possible bugs: parameters may not have been written with correct pointers (& or *)
- * will fix when we test
- *
- void activate_Multi_Threader(int number_of_threads, void * function_name, struct parameter param) {
- pthread_t tidp;
- int i, thread0;
- for (i = 0; i < number_of_threads; i++) {
- //int  pthread_create(pthread_t  *  thread, pthread_attr_t * attr, void *(*start_routine)(void *), void * arg);
- thread0 = pthread_create(&tidp, NULL, function_name, (void *) &param);
- if (thread0 != 0) printf("\ncan't create thread\n");
- }
- if(finished_activations)
- pthread_join(tidp, NULL);
- }
- //NOTE NOTE NOTE
- //in order to pass in a method to a threader, YOU NEED TO name your method in this manner
- //add_to_buffer(char * filename)  needs to be
- //void* add_to_buffer(char * filename)
- */
+void startSearch();
 
 void createIndexThreads(pthread_t * threads, int num_threads)
 {
@@ -81,7 +53,7 @@ void addToBuffer(char * file_name, int buffer_amount)
     strncpy(scan_buffer[buffer_amount], file_name, sizeof(file_name)-1);
     // USE STRCOPY WHEN INSERTING INTO SCAN_BUFFER
     strcpy(scan_buffer[buffer_amount], file_name);
-	printf("%s", scan_buffer[buffer_amount]);
+	printf("Added: %s\n", scan_buffer[buffer_amount]);
 }
 
 void removeFromBuffer(int pos)
@@ -89,17 +61,16 @@ void removeFromBuffer(int pos)
     char * file_name;
     FILE * file;
     char buffer[512];
-    int line_number;
+    int line_number = 1;
     
     file_name = scan_buffer[pos];
     
-    printf("File to be indexed: %s", file_name);
+    printf("File to be indexed: %s\n", file_name);
     if ((file = fopen(file_name, "r")) == NULL) {
-        printf("Wasn't able to open: %s", file_name);
+        printf("Wasn't able to open: %s\n", file_name);
         return;
     }
     while (!feof(file)) {
-        line_number = 0;
         char * word;
         char * saveptr;
         fgets(buffer, 512, file);
@@ -115,7 +86,6 @@ void removeFromBuffer(int pos)
 
 void startScanning()
 {
-    int i;
     char buffer[513];
 	char * copy;
 	char ** save_ptr;
@@ -124,23 +94,16 @@ void startScanning()
 		sem_wait(&empty_buffer);
 		sem_wait(&mutex_one);
         
-		printf("WAIT\n");
 		buffer_amount = 0;
         for (buffer_amount = 0; buffer_amount < scan_buffer_size; buffer_amount++) {
             if (fgets(buffer, 512, file_list) != NULL) {
                 if(buffer[strlen(buffer) - 1] == '\n')
                     buffer[strlen(buffer) - 1] = '\0';
-                printf("\nGot here %d\n",buffer_amount);
                 addToBuffer(buffer, buffer_amount);
             }
         }
 		sem_post(&mutex_one);
 		sem_post(&full_buffer);
-        
-        printf("\nCHECK 1\n");
-        for (i=0; i < 10; i++) {
-            printf("scan_buffer[%d]: %s\n",i,scan_buffer[i]);
-        }
 	}
     scanning_done = TRUE;
 	fclose(file_list);
@@ -152,10 +115,8 @@ void startIndexing()
     while (!scanning_done) {
         int i;
         
-        printf("Waiting to index\n");
         sem_wait(&full_buffer);
         sem_wait(&mutex_one);
-        printf("Begin to index\n");
         
         // Implement whatever algo for multiple indexing threads
         // this one is for one thread, so it is linear
@@ -165,6 +126,34 @@ void startIndexing()
         
         sem_post(&mutex_one);
         sem_post(&empty_buffer);
+    }
+}
+
+void startSearch()
+{
+    char input[130];
+    index_search_results_t * all_results;
+    index_search_elem_t result;
+    int num_results;
+    char * file_name;
+    int i, line_number;
+    
+    while (1) {
+        printf("Search: ");
+        scanf("%s", input);
+        all_results = find_in_index(input);
+        if (all_results == NULL) {
+            printf("Word not found.\n");
+        }
+        else {
+            num_results = all_results->num_results;
+            for (i=0; i < num_results; i++) {
+                result = all_results->results[i];
+                line_number = result.line_number;
+                file_name = result.file_name;
+                printf("FOUND: %s %d\n", file_name, line_number);
+            }
+        }
     }
 }
 
@@ -220,17 +209,16 @@ int main(int argc, char * argv[])
     pthread_t index_threads[indexer_amount];
     createIndexThreads(index_threads, indexer_amount);
     
+    pthread_t search_thread;
+    pthread_create(&search_thread, NULL, startSearch, NULL);
+    
     startScanning();
     
     for (i=0; i < indexer_amount; i++) {
         pthread_join(index_threads[i], NULL);
     }
     
-    //struct parameter param;
-    //activate_Multi_Threader(indexer_amount, startIndexing, param);
-    //activate_Multi_Threader(1, startScanning, param);
-    //finished_activations = 1;
-    //activate_Multi_Threader(1, SEARCH, param);
+    pthread_join(search_thread, NULL);
     
 	return 0;
 }
