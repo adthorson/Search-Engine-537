@@ -129,6 +129,58 @@ void startIndexing()
     }
 }
 
+void advSearch(char * input)
+{
+    index_search_results_t * all_results;
+    index_search_elem_t result;
+    int num_results;
+    char * file_name, word;
+    int i, line_number;
+    
+    file_name = strtok(input, " ");
+    word = strtok(NULL, " ");
+    printf("FILE: %s WORD: %s\n",file_name, word);
+    
+    all_results = find_in_index(input);
+    if (all_results == NULL) {
+        printf("Word not found.\n");
+    }
+    else {
+        num_results = all_results->num_results;
+        for (i=0; i < num_results; i++) {
+            result = all_results->results[i];
+            line_number = result.line_number;
+            file_name = result.file_name;
+            int cmp = strncmp(word, file_name, 512);
+            if (cmp != 0) continue;
+            printf("FOUND: %s %d\n", file_name, line_number);
+        }
+    }
+}
+
+void basicSearch(char * input)
+{
+    index_search_results_t * all_results;
+    index_search_elem_t result;
+    int num_results;
+    char * file_name;
+    int i, line_number;
+    
+    all_results = find_in_index(input);
+    if (all_results == NULL) {
+        printf("Word not found.\n");
+    }
+    else {
+        num_results = all_results->num_results;
+        for (i=0; i < num_results; i++) {
+            result = all_results->results[i];
+            line_number = result.line_number;
+            file_name = result.file_name;
+            printf("FOUND: %s %d\n", file_name, line_number);
+        }
+    }
+}
+
 void startSearch()
 {
     char input[130];
@@ -136,24 +188,21 @@ void startSearch()
     index_search_elem_t result;
     int num_results;
     char * file_name;
-    int i, line_number;
+    int i, adv = FALSE, line_number;
     
     while (1) {
         printf("Search: ");
         scanf("%s", input);
-        all_results = find_in_index(input);
-        if (all_results == NULL) {
-            printf("Word not found.\n");
-        }
-        else {
-            num_results = all_results->num_results;
-            for (i=0; i < num_results; i++) {
-                result = all_results->results[i];
-                line_number = result.line_number;
-                file_name = result.file_name;
-                printf("FOUND: %s %d\n", file_name, line_number);
+        for (i=0; i < strlen(input); i++) {
+            if (input[i] == ' ') {
+                adv = TRUE;
+                break;
             }
         }
+        if (adv)
+            advSearch(input);
+        else
+            basicSearch(input);
     }
 }
 
