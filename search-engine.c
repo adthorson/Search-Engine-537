@@ -24,33 +24,31 @@ char empty_error[31] = "Semaphore empty_buffer error!\n";
 
 char ** scan_buffer;
 
-sem_t mutex_one;
-sem_t full_buffer;
-sem_t empty_buffer;
+pthread_cond_t empty_cond, fill_cond;
+pthread_mutex_t mutex_one;
+//sem_t mutex_one;
+//sem_t full_buffer;
+//sem_t empty_buffer;
 int finished_activations;
 
-int buffer_amount;
+int buffer_amount, scan_buffer_size, scanning_done;
 FILE * file_list;
 
 void startScanning();
 void startIndexing();
+void createIndexThreads(pthread_t * threads, int num_threads);
+void addToBuffer(char * file_name, int buffer_amount);
+void removeFromBuffer(int pos);
 
 
-
-/*
-void activate_Multi_Threader(int number_of_threads, void * function_name, struct parameter param) {
-	pthread_t tidp;
-	int i, thread0;
-	for (i = 0; i < number_of_threads; i++) {
-        //int  pthread_create(pthread_t  *  thread, pthread_attr_t * attr, void *(*start_routine)(void *), void * arg);
-		thread0 = pthread_create(&tidp, NULL, function_name, (void *) &param);
-		if (thread0 != 0) printf("\ncan't create thread\n");
-	}
-    if(finished_activations)
-        pthread_join(tidp, NULL);
+void createIndexThreads(pthread_t * threads, int num_threads)
+{
+    int i;
+    
+    for (i=0; i < num_threads; i++) {
+        pthread_create(&threads[i], NULL, startIndexing, i);
+    }
 }
-*/
-
 
 
 void addToBuffer(char * file_name, int buffer_amount)
@@ -72,9 +70,9 @@ void removeFromBuffer(int pos)
     
     file_name = scan_buffer[pos];
     
-    printf("File to be indexed: %s", file_name);
+    printf("File to be indexed: %s\n", file_name);
     if ((file = fopen(file_name, "r")) == NULL) {
-        printf("Wasn't able to open: %s", file_name);
+        printf("Wasn't able to open: %s\n", file_name);
         return;
     }
     while (!feof(file)) {
@@ -90,64 +88,125 @@ void removeFromBuffer(int pos)
         line_number = line_number+1;
     }
     fclose(file);
+	printf("FILE CLOSED!\n");
 }
 
+
+/*
 void startScanning()
 {
-    int i;
-    char buffer[513];
+	int i;
+	char buffer[513];
 	char * copy;
 	char ** save_ptr;
     
-    while(!feof(file_list)) {
+	while(!feof(file_list)) {
 		sem_wait(&empty_buffer);
 		sem_wait(&mutex_one);
         
 		printf("WAIT\n");
-		buffer_amount = 0;
-        for (buffer_amount = 0; buffer_amount < 10; buffer_amount++) {
-            if (fgets(buffer, 512, file_list) != NULL) {
-                if(buffer[strlen(buffer) - 1] == '\n')
-                    buffer[strlen(buffer) - 1] = '\0';
-                printf("\nGot here %d\n",buffer_amount);
-                addToBuffer(buffer, buffer_amount);
-            }
-        }
+       
+		if (fgets(buffer, 512, file_list) != NULL) {
+			if(buffer[strlen(buffer) - 1] == '\n')
+				buffer[strlen(buffer) - 1] = '\0';
+           		//printf("\nGot here %d\n",buffer_amount);
+          		addToBuffer(buffer, buffer_amount);
+        		++buffer_amount;
+        	}
 		sem_post(&mutex_one);
 		sem_post(&full_buffer);
         
-        printf("\nCHECK 1\n");
-        for (i=0; i < 10; i++) {
-            printf("scan_buffer[%d]: %s\n",i,scan_buffer[i]);
-        }
-        
-        startIndexing();
 	}
+	scanning_done = TRUE;
+	fclose(file_list);
+}
+*/
+
+
+
+void startScanning()
+{
+	char buffer[513];
+    
+	while(!feof(file_list)) {
+		
+        	pthread_mutex_lock(&mutex_one);
+		while(buffer_amount == scan_buffer_size)
+			pthread_cond_wait(&empty_cond, &mutex_one);		
+
+		printf("AFTER WAIT\n");
+       
+		if (fgets(buffer, 512, file_list) != NULL) {
+			if(buffer[strlen(buffer) - 1] == '\n')
+				buffer[strlen(buffer) - 1] = '\0';
+			printf("Add %d\n",buffer_amount);
+          		addToBuffer(buffer, buffer_amount);
+        		++buffer_amount;
+        	}
+		pthread_cond_signal(&fill_cond);
+        	pthread_mutex_unlock(&mutex_one);
+	}
+	pthread_mutex_lock(&mutex_one);
+	scanning_done = TRUE;
+	pthread_mutex_unlock(&mutex_one);
 	fclose(file_list);
 }
 
 
+
+/*
 void startIndexing()
 {
-    int i;
-    
-    printf("Waiting to index\n");
-    sem_wait(&full_buffer);
-    sem_wait(&mutex_one);
-    printf("Begin to index\n");
-    
-    // Implement whatever algo for multiple indexing threads
-    // this one is for one thread, so it is linear
-    for (i=0; i < 10; i++) {
-        removeFromBuffer(i);
-    }
-    
-    sem_post(&mutex_one);
-    sem_post(&empty_buffer);
+	while (!scanning_done || (buffer_amount != 0)) {
+		int i;
+        
+		printf("Waiting to index\n");
+		sem_wait(&full_buffer);
+		sem_wait(&mutex_one);
+		printf("Begin to index\n");
+        
+        	// Implement whatever algo for multiple indexing threads
+        	// this one is for one thread, so it is linear
+        
+		removeFromBuffer(buffer_amount - 1);
+		--buffer_amount;
+        
+		sem_post(&mutex_one);
+		sem_post(&empty_buffer);
+	}
 }
+*/
+void startIndexing(void * thread_number)
+{
+	int temp = (int) thread_number;
+	while (!scanning_done || (buffer_amount > 0)) {
+		printf("%d:Waiting to index\n",temp);
+		pthread_mutex_lock(&mutex_one);
+		while(buffer_amount == 0)
+			pthread_cond_wait(&empty_cond, &mutex_one);
+
+		printf("Begin to index\n");
+        
+        	// Implement whatever algo for multiple indexing threads
+        	// this one is for one thread, so it is linear
+        
+		printf("\nRemove %d\n",buffer_amount);
+		removeFromBuffer(buffer_amount - 1);
+		--buffer_amount;
+        
+		pthread_cond_signal(&empty_cond);
+		pthread_mutex_unlock(&mutex_one);
+	}
+	printf("THREAD #%d FINISHED INSIDE OF startIndexing() FUNCTION\n",temp);
+}
+
 
 int main(int argc, char * argv[])
 {
+    int i;
+	buffer_amount = 0;
+    scanning_done = FALSE;
+    
 	// Let's try to guarantee proper usage
 	if (argc != 3) {
 		write(STDERR_FILENO, argc_error, strlen(argc_error));
@@ -164,40 +223,55 @@ int main(int argc, char * argv[])
 	
 	// How many threads will be indexing
 	int indexer_amount = atoi(argv[1]);
-
+    
 	scan_buffer = malloc(indexer_amount * 10 * sizeof(char *));
-	int j;	
+	int j;
 	for(j = 0; j < indexer_amount * 10; ++j){
 		scan_buffer[j] = malloc(513 * sizeof(char *));
 	}
     
     // Initialize hashtable
     int hash_init = init_index();
-    if (hash_init != 0) {
+    if (hash_init != 0)
         printf("Index initialization error");
+    
+    // Malloc scan_buffer
+    scan_buffer_size = indexer_amount * 10;
+    scan_buffer = malloc(scan_buffer_size * sizeof(char *));
+    for (i = 0; i < scan_buffer_size; ++i) {
+        scan_buffer[i] = malloc(513 * sizeof(char *));
     }
     
 	//printf("BEFORE INIT\n");
-	if(sem_init(&mutex_one, 0, 1) != 0) {
+	/*if(sem_init(&mutex_one, 0, 1) != 0) {
 		write(STDERR_FILENO, mutex_one_error, strlen(mutex_one_error));
 		exit(1);
-	}
-	if(sem_init(&full_buffer, 0, 0) != 0) {
+	}*/
+	/*if(sem_init(&full_buffer, 0, 0) != 0) {
 		write(STDERR_FILENO, full_error, strlen(full_error));
 		exit(1);
 	}
-	if(sem_init(&empty_buffer, 0, 1) != 0) {
+	if(sem_init(&empty_buffer, 0, indexer_amount * 10) != 0) {
 		write(STDERR_FILENO, empty_error, strlen(empty_error));
 		exit(1);
-	}
+	}*/
+	pthread_mutex_init(&mutex_one, NULL);
+	pthread_cond_init(&empty_cond, NULL);
+	pthread_cond_init(&fill_cond, NULL);
+
     finished_activations = 0;
     
+    pthread_t index_threads[indexer_amount];
+    createIndexThreads(index_threads, indexer_amount);
+    
     startScanning();
-    //struct parameter param;
-    //activate_Multi_Threader(indexer_amount, startIndexing, param);
-    //activate_Multi_Threader(1, startScanning, param);
-    //finished_activations = 1;
-    //activate_Multi_Threader(1, SEARCH, param);
+    
+    for (i=0; i < indexer_amount; i++) {
+	printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
+        if(pthread_join(index_threads[i], NULL))
+		printf("HERE's YOUR F***ING PROBLEM!\n");
+    }
+    
     
 	return 0;
 }
