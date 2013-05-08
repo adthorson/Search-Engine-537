@@ -36,10 +36,10 @@ int buffer_amount, scan_buffer_size, scanning_done;
 FILE * file_list;
 
 void startScanning();
-void startIndexing();
+void startIndexing(void * thread_number);
 void createIndexThreads(pthread_t * threads, int num_threads);
-void addToBuffer(char * file_name, int buffer_amount);
-void removeFromBuffer(int pos);
+void addToBuffer(char * file_name);
+void removeFromBufferAndIndex(int thread_number);
 void startSearch();
 
 
@@ -53,27 +53,44 @@ void createIndexThreads(pthread_t * threads, int num_threads)
 }
 
 
-void addToBuffer(char * file_name, int buffer_amount)
+void addToBuffer(char * file_name)
 {
     strncpy(scan_buffer[buffer_amount], file_name, sizeof(file_name)-1);
     // USE STRCOPY WHEN INSERTING INTO SCAN_BUFFER
     strcpy(scan_buffer[buffer_amount], file_name);
-    //printf("%s", scan_buffer[buffer_amount]);
-
+    //printf("%s\n", scan_buffer[buffer_amount]);
+    ++buffer_amount;
 }
 
 
-
-void removeFromBuffer(int pos)
-{
+void removeFromBufferAndIndex(int thread_number){
     char * file_name;
     FILE * file;
     char buffer[512];
     int line_number = 1;
     
-    file_name = scan_buffer[pos];
+    // Waiting to remove from buffer
+    //printf("STOP REMOVE!\n");
+    pthread_mutex_lock(&mutex_one);
+    //printf("IN REMOVE LOCK\n");
+    while(buffer_amount == 0){
+        if(scanning_done){
+            pthread_mutex_unlock(&mutex_one);
+            return;
+        }
+        pthread_cond_wait(&fill_cond, &mutex_one);
+        //printf("STUCK IN REMOVE\n");
+    }
     
-    //printf("File to be indexed: %s\n", file_name);
+    file_name = scan_buffer[buffer_amount - 1];
+    --buffer_amount;
+    //printf("--BUFFER_AMOUNT -> in removeFromBufferAndIndex\n");
+    pthread_cond_broadcast(&fill_cond);
+    pthread_mutex_unlock(&mutex_one);
+    // Has removed from buffer and signal to others who are waiting
+    
+    
+    //printf("Thread: %d  File to be indexed: %s\n", thread_number, file_name);
     if ((file = fopen(file_name, "r")) == NULL) {
         //printf("Wasn't able to open: %s\n", file_name);
         return;
@@ -84,76 +101,68 @@ void removeFromBuffer(int pos)
         fgets(buffer, 512, file);
         word = strtok_r(buffer, " \n\t-_!@#$%^&*()_+=,./<>?", &saveptr);
         while (word != NULL) {
+            //printf("Word inserted: %s\n",word);
             insert_into_index(word, file_name, line_number);
             word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?",&saveptr);
         }
         line_number = line_number+1;
     }
     fclose(file);
-	//printf("FILE CLOSED!\n");
 }
-
 
 
 void startScanning()
 {
 	char buffer[513];
+    int i = 0;
     
 	while(!feof(file_list)) {
 		
         pthread_mutex_lock(&mutex_one);
-		while(buffer_amount == scan_buffer_size)
+		while(buffer_amount > 0)
 			pthread_cond_wait(&empty_cond, &mutex_one);
         
-		//printf("AFTER WAIT\n");
-        
-		if (fgets(buffer, 512, file_list) != NULL) {
-			if(buffer[strlen(buffer) - 1] == '\n')
-				buffer[strlen(buffer) - 1] = '\0';
-			//printf("Add %d\n",buffer_amount);
-            addToBuffer(buffer, buffer_amount);
-            ++buffer_amount;
+		for(i = 0; i < scan_buffer_size; ++i){
+            if (fgets(buffer, 512, file_list) != NULL) {
+                if(buffer[strlen(buffer) - 1] == '\n')
+                    buffer[strlen(buffer) - 1] = '\0';
+                //printf("Add %d\n",buffer_amount);
+                addToBuffer(buffer);
+                continue;
+            // else not actually needed, but used as a safety net
+            }else{
+                break;
+            }
         }
-		pthread_cond_signal(&fill_cond);
+        
+		pthread_cond_broadcast(&fill_cond);
         pthread_mutex_unlock(&mutex_one);
 	}
+    
 	pthread_mutex_lock(&mutex_one);
 	scanning_done = TRUE;
     pthread_cond_broadcast(&fill_cond);
 	pthread_mutex_unlock(&mutex_one);
+    
 	fclose(file_list);
 }
 
 
 
-void startIndexing(void * thread_number)
-{
+void startIndexing(void * thread_number){
 	int temp = (int) thread_number;
 	while (TRUE) {
-		//printf("%d:Waiting to index\n",temp);
-		pthread_mutex_lock(&mutex_one);
-        //printf("BUFFER AMOUNT = %d\n",buffer_amount);
-		while(buffer_amount == 0){
+        
+		removeFromBufferAndIndex(thread_number);
+        
+        while(buffer_amount == 0){
             if(scanning_done){
-                //printf("BrOk3!\n");
-                //pthread_cond_broadcast(&fill_cond);
                 pthread_mutex_unlock(&mutex_one);
                 return;
             }
-            //printf("TED IS A SILLY LIL BOY\n");
-			pthread_cond_wait(&fill_cond, &mutex_one);
+            
+            pthread_cond_signal(&empty_cond);
         }
-        
-		//printf("Begin to index\n");
-        
-        // Implement whatever algo for multiple indexing threads
-        // this one is for one thread, so it is linear
-		//printf("\nRemove %d\n",buffer_amount);
-		removeFromBuffer(buffer_amount - 1);
-		--buffer_amount;
-        
-		pthread_cond_signal(&empty_cond);
-		pthread_mutex_unlock(&mutex_one);
 	}
 }
 
@@ -295,7 +304,7 @@ int main(int argc, char * argv[])
     }
     
     // Malloc scan_buffer
-    scan_buffer_size = indexer_amount * 10;
+    scan_buffer_size = 10;
     scan_buffer = malloc(scan_buffer_size * sizeof(char *));
     for (i = 0; i < scan_buffer_size; ++i) {
         scan_buffer[i] = malloc(513 * sizeof(char *));
