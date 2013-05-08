@@ -56,7 +56,7 @@ void addToBuffer(char * file_name, int buffer_amount)
     strncpy(scan_buffer[buffer_amount], file_name, sizeof(file_name)-1);
     // USE STRCOPY WHEN INSERTING INTO SCAN_BUFFER
     strcpy(scan_buffer[buffer_amount], file_name);
-	printf("%s", scan_buffer[buffer_amount]);
+    printf("%s", scan_buffer[buffer_amount]);
 }
 
 
@@ -93,34 +93,34 @@ void removeFromBuffer(int pos)
 
 
 /*
-void startScanning()
-{
-	int i;
-	char buffer[513];
-	char * copy;
-	char ** save_ptr;
-    
-	while(!feof(file_list)) {
-		sem_wait(&empty_buffer);
-		sem_wait(&mutex_one);
-        
-		printf("WAIT\n");
-       
-		if (fgets(buffer, 512, file_list) != NULL) {
-			if(buffer[strlen(buffer) - 1] == '\n')
-				buffer[strlen(buffer) - 1] = '\0';
-           		//printf("\nGot here %d\n",buffer_amount);
-          		addToBuffer(buffer, buffer_amount);
-        		++buffer_amount;
-        	}
-		sem_post(&mutex_one);
-		sem_post(&full_buffer);
-        
-	}
-	scanning_done = TRUE;
-	fclose(file_list);
-}
-*/
+ void startScanning()
+ {
+ int i;
+ char buffer[513];
+ char * copy;
+ char ** save_ptr;
+ 
+ while(!feof(file_list)) {
+ sem_wait(&empty_buffer);
+ sem_wait(&mutex_one);
+ 
+ printf("WAIT\n");
+ 
+ if (fgets(buffer, 512, file_list) != NULL) {
+ if(buffer[strlen(buffer) - 1] == '\n')
+ buffer[strlen(buffer) - 1] = '\0';
+ //printf("\nGot here %d\n",buffer_amount);
+ addToBuffer(buffer, buffer_amount);
+ ++buffer_amount;
+ }
+ sem_post(&mutex_one);
+ sem_post(&full_buffer);
+ 
+ }
+ scanning_done = TRUE;
+ fclose(file_list);
+ }
+ */
 
 
 
@@ -130,24 +130,25 @@ void startScanning()
     
 	while(!feof(file_list)) {
 		
-        	pthread_mutex_lock(&mutex_one);
+        pthread_mutex_lock(&mutex_one);
 		while(buffer_amount == scan_buffer_size)
-			pthread_cond_wait(&empty_cond, &mutex_one);		
-
+			pthread_cond_wait(&empty_cond, &mutex_one);
+        
 		printf("AFTER WAIT\n");
-       
+        
 		if (fgets(buffer, 512, file_list) != NULL) {
 			if(buffer[strlen(buffer) - 1] == '\n')
 				buffer[strlen(buffer) - 1] = '\0';
 			printf("Add %d\n",buffer_amount);
-          		addToBuffer(buffer, buffer_amount);
-        		++buffer_amount;
-        	}
+            addToBuffer(buffer, buffer_amount);
+            ++buffer_amount;
+        }
 		pthread_cond_signal(&fill_cond);
-        	pthread_mutex_unlock(&mutex_one);
+        pthread_mutex_unlock(&mutex_one);
 	}
 	pthread_mutex_lock(&mutex_one);
 	scanning_done = TRUE;
+    pthread_cond_broadcast(&fill_cond);
 	pthread_mutex_unlock(&mutex_one);
 	fclose(file_list);
 }
@@ -155,41 +156,49 @@ void startScanning()
 
 
 /*
-void startIndexing()
-{
-	while (!scanning_done || (buffer_amount != 0)) {
-		int i;
-        
-		printf("Waiting to index\n");
-		sem_wait(&full_buffer);
-		sem_wait(&mutex_one);
-		printf("Begin to index\n");
-        
-        	// Implement whatever algo for multiple indexing threads
-        	// this one is for one thread, so it is linear
-        
-		removeFromBuffer(buffer_amount - 1);
-		--buffer_amount;
-        
-		sem_post(&mutex_one);
-		sem_post(&empty_buffer);
-	}
-}
-*/
+ void startIndexing()
+ {
+ while (!scanning_done || (buffer_amount != 0)) {
+ int i;
+ 
+ printf("Waiting to index\n");
+ sem_wait(&full_buffer);
+ sem_wait(&mutex_one);
+ printf("Begin to index\n");
+ 
+ // Implement whatever algo for multiple indexing threads
+ // this one is for one thread, so it is linear
+ 
+ removeFromBuffer(buffer_amount - 1);
+ --buffer_amount;
+ 
+ sem_post(&mutex_one);
+ sem_post(&empty_buffer);
+ }
+ }
+ */
 void startIndexing(void * thread_number)
 {
 	int temp = (int) thread_number;
-	while (!scanning_done || (buffer_amount > 0)) {
+	while (TRUE) {
 		printf("%d:Waiting to index\n",temp);
 		pthread_mutex_lock(&mutex_one);
-		while(buffer_amount == 0)
-			pthread_cond_wait(&empty_cond, &mutex_one);
-
+        printf("BUFFER AMOUNT = %d\n",buffer_amount);
+		while(buffer_amount == 0){
+            if(scanning_done){
+                printf("BrOk3!\n");
+                //pthread_cond_broadcast(&fill_cond);
+                pthread_mutex_unlock(&mutex_one);
+                return;
+            }
+            //printf("TED IS A SILLY LIL BOY\n");
+			pthread_cond_wait(&fill_cond, &mutex_one);
+        }
+        
 		printf("Begin to index\n");
         
-        	// Implement whatever algo for multiple indexing threads
-        	// this one is for one thread, so it is linear
-        
+        // Implement whatever algo for multiple indexing threads
+        // this one is for one thread, so it is linear
 		printf("\nRemove %d\n",buffer_amount);
 		removeFromBuffer(buffer_amount - 1);
 		--buffer_amount;
@@ -197,7 +206,6 @@ void startIndexing(void * thread_number)
 		pthread_cond_signal(&empty_cond);
 		pthread_mutex_unlock(&mutex_one);
 	}
-	printf("THREAD #%d FINISHED INSIDE OF startIndexing() FUNCTION\n",temp);
 }
 
 
@@ -244,21 +252,21 @@ int main(int argc, char * argv[])
     
 	//printf("BEFORE INIT\n");
 	/*if(sem_init(&mutex_one, 0, 1) != 0) {
-		write(STDERR_FILENO, mutex_one_error, strlen(mutex_one_error));
-		exit(1);
-	}*/
+     write(STDERR_FILENO, mutex_one_error, strlen(mutex_one_error));
+     exit(1);
+     }*/
 	/*if(sem_init(&full_buffer, 0, 0) != 0) {
-		write(STDERR_FILENO, full_error, strlen(full_error));
-		exit(1);
-	}
-	if(sem_init(&empty_buffer, 0, indexer_amount * 10) != 0) {
-		write(STDERR_FILENO, empty_error, strlen(empty_error));
-		exit(1);
-	}*/
+     write(STDERR_FILENO, full_error, strlen(full_error));
+     exit(1);
+     }
+     if(sem_init(&empty_buffer, 0, indexer_amount * 10) != 0) {
+     write(STDERR_FILENO, empty_error, strlen(empty_error));
+     exit(1);
+     }*/
 	pthread_mutex_init(&mutex_one, NULL);
 	pthread_cond_init(&empty_cond, NULL);
 	pthread_cond_init(&fill_cond, NULL);
-
+    
     finished_activations = 0;
     
     pthread_t index_threads[indexer_amount];
@@ -267,9 +275,9 @@ int main(int argc, char * argv[])
     startScanning();
     
     for (i=0; i < indexer_amount; i++) {
-	printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
+        printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
         if(pthread_join(index_threads[i], NULL))
-		printf("HERE's YOUR F***ING PROBLEM!\n");
+            printf("HERE's YOUR PROBLEM!\n");
     }
     
     
