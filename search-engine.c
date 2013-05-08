@@ -134,14 +134,21 @@ void advSearch(char * input)
     index_search_results_t * all_results;
     index_search_elem_t result;
     int num_results;
-    char * file_name, word;
+    char * file_name;
+    file_name = malloc(512);
+    char * file_name_result;
+    file_name_result = malloc(512);
+    char * word;
+    word = malloc(512);
     int i, line_number;
     
-    file_name = strtok(input, " ");
+    word = strtok(input, " ");
+    strcpy(file_name, word);
     word = strtok(NULL, " ");
+    
     printf("FILE: %s WORD: %s\n",file_name, word);
     
-    all_results = find_in_index(input);
+    all_results = find_in_index(word);
     if (all_results == NULL) {
         printf("Word not found.\n");
     }
@@ -150,10 +157,10 @@ void advSearch(char * input)
         for (i=0; i < num_results; i++) {
             result = all_results->results[i];
             line_number = result.line_number;
-            file_name = result.file_name;
-            int cmp = strncmp(word, file_name, 512);
+            file_name_result = result.file_name;
+            int cmp = strncmp(file_name_result, file_name, 512);
             if (cmp != 0) continue;
-            printf("FOUND: %s %d\n", file_name, line_number);
+            printf("FOUND: %s %d\n", file_name_result, line_number);
         }
     }
 }
@@ -188,11 +195,14 @@ void startSearch()
     index_search_elem_t result;
     int num_results;
     char * file_name;
-    int i, adv = FALSE, line_number;
+    int i, adv, line_number;
     
     while (1) {
+        adv = FALSE;
         printf("Search: ");
-        scanf("%s", input);
+        fgets(input, sizeof(input), stdin);
+        if(input[strlen(input) - 1] == '\n')
+            input[strlen(input) - 1] = '\0';
         for (i=0; i < strlen(input); i++) {
             if (input[i] == ' ') {
                 adv = TRUE;
