@@ -1,0 +1,28 @@
+Group Name: _______________________________________________
+###########################################################
+PART 1: Testing the behavior of indexing/searching (60 pts)
+###########################################################
+1.) Basic search handles simple queries: 
+(10 pts) word exists in text file  
+(10 pts) word exists in pdf
+(10 pts) word not found at all
+
+2.) Advanced search handles more sophisticated queries:  
+(5 pts) word exists in simple file specified
+(5 pts) word does not exist in file specified
+(10 pts) file specified does not exist
+(10 pts) waits for indexing to finish large file before returning
+
+###########################################################
+PART 2: Peek at code (40 pts)
+###########################################################
+1.) Implements locking mechanism:
+ (5/15 pts) single mutex for whole table
+ (10/15 pts) more sophisticated read/write lock
+ (15/15 pts) fine-grain (e.g., bucket-level) locking
+
+2.) Bounded buffer is implemented/used correctly (15pts)
+
+3.) Waits for threads to exit before terminating program (5pts)
+
+4.) Code is neat, documented, and easy to understand (5pts)
