@@ -169,13 +169,13 @@ void advSearch(char * input)
     file_name_result = malloc(512);
     char * word;
     word = malloc(512);
-    int i, line_number;
+    int i, found=0, line_number;
     
     word = strtok(input, " ");
     strcpy(file_name, word);
     word = strtok(NULL, " ");
     
-    printf("FILE: %s WORD: %s\n",file_name, word);
+    printf("FILE: %s WORD: %s\n", file_name, word);
     
     all_results = find_in_index(word);
     if (all_results == NULL) {
@@ -189,12 +189,14 @@ void advSearch(char * input)
             file_name_result = result.file_name;
             int cmp = strncmp(file_name_result, file_name, 512);
             if (cmp != 0) {
-                printf("Word not found.\n");
                 continue;
             }
             printf("FOUND: %s %d\n", file_name_result, line_number);
+            found = 1;
         }
     }
+    if (!found)
+        printf("Word not found.\n");
 }
 
 
