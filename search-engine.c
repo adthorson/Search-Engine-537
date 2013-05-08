@@ -159,7 +159,7 @@ void advSearch(char * input)
             line_number = result.line_number;
             file_name_result = result.file_name;
             int cmp = strncmp(file_name_result, file_name, 512);
-            if (cmp != 0) continue;
+            if (cmp != 0) printf("Word not found.\n");
             printf("FOUND: %s %d\n", file_name_result, line_number);
         }
     }
@@ -195,12 +195,17 @@ void startSearch()
     index_search_elem_t result;
     int num_results;
     char * file_name;
-    int i, adv, line_number;
+    int i, c, adv, line_number;
+    char tst[512];
     
-    while (1) {
+    while((c = getchar()) != EOF) {
+        input[0] = c;
         adv = FALSE;
         printf("Search: ");
-        fgets(input, sizeof(input), stdin);
+        fgets(tst, sizeof(tst), stdin);
+        for (i=1; i < strlen(tst); i++) {
+            input[i] = tst[i-1];
+        }
         if(input[strlen(input) - 1] == '\n')
             input[strlen(input) - 1] = '\0';
         for (i=0; i < strlen(input); i++) {
