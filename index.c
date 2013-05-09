@@ -220,7 +220,7 @@ int lock_array_size = 1024;
 // Create R/W lock
 pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-pthread_rwlock_t * lock_array;
+//pthread_rwlock_t * lock_array;
 
 
 
@@ -255,6 +255,9 @@ create_hashtable(unsigned int minsize,
 {
     
     struct hashtable *h;
+    
+    pthread_rwlock_init(&rwlock, NULL);                         //LOck
+    
     unsigned int pindex, size = primes[0];
     /* Check requested hashtable isn't too large */
     if (minsize > (1u << 30)) return NULL;
@@ -294,6 +297,8 @@ hash(struct hashtable *h, void *k)
 static int
 hashtable_expand(struct hashtable *h)
 {
+    //pthread_rwlock_wrlock
+    
     /* Double the size of the table to accomodate more entries */
     struct entry **newtable;
     struct entry *e;
@@ -302,11 +307,11 @@ hashtable_expand(struct hashtable *h)
     
     // Expand lock array as well
     lock_array_size = lock_array_size * 2;
-    lock_array = malloc(lock_array_size * sizeof(pthread_rwlock_t));
+    //lock_array = malloc(lock_array_size * sizeof(pthread_rwlock_t));      //LOCK
     
     // And initialize each lock
     for (i=0; i < lock_array_size; i++) {
-        pthread_rwlock_init(&lock_array[i], NULL);
+        //pthread_rwlock_init(&lock_array[i], NULL);                        //LOCK
     }
     
     /* Check we're not hitting max capacity */
@@ -372,7 +377,9 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
 {
     int i;
     
-    pthread_rwlock_init(&rwlock, NULL);
+    // MOVED to create_hashtable
+    //pthread_rwlock_init(&rwlock, NULL);
+    
     pthread_rwlock_wrlock(&rwlock);                                             //WRITE LOCK
     
     /* This method allows duplicate keys - but they shouldn't be used */
@@ -393,7 +400,7 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
     e->k = k;
     e->v = v;
     e->next = h->table[index];
-
+    
     
     h->table[index] = e;
     
@@ -405,7 +412,7 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
 void * /* returns value associated with key */
 hashtable_search(struct hashtable *h, void *k)
 {
-    pthread_rwlock_init(&rwlock, NULL);
+    //pthread_rwlock_init(&rwlock, NULL);
     pthread_rwlock_rdlock(&rwlock);                                             //READ LOCK
     
     struct entry *e;
@@ -570,7 +577,7 @@ struct list_head name = LIST_HEAD_INIT(name)
 /**
  * container_of - cast a member of a structure out to the containing structure
  * @ptr: the pointer to the member.
- * @type:	the type of the container struct this is embedded in.
+ * @type: the type of the container struct this is embedded in.
  * @member:	the name of the member within the struct.
  *
  */
