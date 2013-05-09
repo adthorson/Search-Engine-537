@@ -4,6 +4,7 @@
 #include <sys/errno.h>
 #include <math.h>
 #include "index.h"
+#include <pthread.h>
 
 /* Copyright (C) 2002 Christopher Clark <firstname.lastname@cl.cam.ac.uk> */
 
@@ -212,6 +213,11 @@ indexFor(unsigned int tablelength, unsigned int hashvalue)
 #define freekey(X) free(X)
 /*define freekey(X) ; */
 
+// Create R/W lock
+pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
+pthread_rwlock_t array_locks[1024] = PTHREAD_RWLOCK_INITIALIZER;
+
 
 /*****************************************************************************/
 /* Copyright (C) 2004 Christopher Clark <firstname.lastname@cl.cam.ac.uk> */
@@ -346,6 +352,14 @@ hashtable_count(struct hashtable *h)
 int
 hashtable_insert(struct hashtable *h, void *k, void *v)
 {
+    int i;
+    
+    pthread_rwlock_init(&rwlock, NULL);
+    for (i=0; i< 1024; i++) {
+        pthread_rwlock_init(&array_locks[i], NULL);
+    }
+    pthread_rwlock_wrlock(&rwlock);                                             //WRITE LOCK
+    
     /* This method allows duplicate keys - but they shouldn't be used */
     unsigned int index;
     struct entry *e;
@@ -364,7 +378,13 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
     e->k = k;
     e->v = v;
     e->next = h->table[index];
+    
+    pthread_rwlock_wrlock(&array_locks[index]);
+    
     h->table[index] = e;
+    
+    pthread_rwlock_unlock(&array_locks[index]);
+    pthread_rwlock_unlock(&rwlock);                                             //UNLOCK
     return -1;
 }
 
@@ -372,6 +392,9 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
 void * /* returns value associated with key */
 hashtable_search(struct hashtable *h, void *k)
 {
+    pthread_rwlock_init(&rwlock, NULL);
+    pthread_rwlock_rdlock(&rwlock);                                             //READ LOCK
+    
     struct entry *e;
     unsigned int hashvalue, index;
     hashvalue = hash(h,k);
@@ -383,6 +406,8 @@ hashtable_search(struct hashtable *h, void *k)
         if ((hashvalue == e->h) && (h->eqfn(k, e->k))) return e->v;
         e = e->next;
     }
+    
+    pthread_rwlock_unlock(&rwlock);                                             //UNLOCK
     return NULL;
 }
 
