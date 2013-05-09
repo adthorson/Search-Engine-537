@@ -569,7 +569,7 @@ struct list_head name = LIST_HEAD_INIT(name)
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 /**
  * container_of - cast a member of a structure out to the containing structure
- * @ptr:	the pointer to the member.
+ * @ptr: the pointer to the member.
  * @type:	the type of the container struct this is embedded in.
  * @member:	the name of the member within the struct.
  *
