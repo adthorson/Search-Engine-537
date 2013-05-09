@@ -95,7 +95,7 @@ void removeFromBufferAndIndex(int thread_number){
     file_name = scan_buffer[buffer_amount - 1];
     --buffer_amount;
     //printf("--BUFFER_AMOUNT -> in removeFromBufferAndIndex\n");
-    pthread_cond_broadcast(&fill_cond);
+    pthread_cond_signal(&empty_cond);
     pthread_mutex_unlock(&mutex_one);
     // Has removed from buffer and signal to others who are waiting
     
@@ -114,11 +114,11 @@ void removeFromBufferAndIndex(int thread_number){
             //printf("Word inserted: %s\n",word);
             
             //TESTING PURPOSES ONLY (using old index.c)
-            //pthread_mutex_lock(&mutex_test);
+            pthread_mutex_lock(&mutex_test);
             insert_into_index(word, file_name, line_number);
             
             //TESTING PURPOSES ONLY (using old index.c)
-            //pthread_mutex_unlock(&mutex_test);
+            pthread_mutex_unlock(&mutex_test);
             
             word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?",&saveptr);
         }
@@ -172,14 +172,15 @@ void startIndexing(void * thread_number){
         
 		removeFromBufferAndIndex(thread_number);
         
-        while(buffer_amount == 0){
-            if(scanning_done){
-                pthread_mutex_unlock(&mutex_one);
-                return;
-            }
-            
-            pthread_cond_signal(&empty_cond);
+        //while(buffer_amount == 0){
+        pthread_mutex_lock(&mutex_one);
+        if(scanning_done){
+            pthread_mutex_unlock(&mutex_one);
+            return;
         }
+        pthread_mutex_unlock(&mutex_one);
+        //pthread_cond_signal(&empty_cond);
+        //}
 	}
 }
 
@@ -394,7 +395,7 @@ int main(int argc, char * argv[])
     pthread_mutex_init(&mutex_advanced, NULL);
     
     //TESTING PURPOSES ONLY (using old index.c)
-    //pthread_mutex_init(&mutex_test, NULL);
+    pthread_mutex_init(&mutex_test, NULL);
 	
     pthread_cond_init(&empty_cond, NULL);
 	pthread_cond_init(&fill_cond, NULL);
@@ -403,7 +404,6 @@ int main(int argc, char * argv[])
     pthread_cond_init(&indexed_noticed_cond, NULL);
     
     finished_activations = 0;
-    
     pthread_t index_threads[indexer_amount];
     createIndexThreads(index_threads, indexer_amount);
     
@@ -412,6 +412,7 @@ int main(int argc, char * argv[])
     
     startScanning();
     
+   
     for (i=0; i < indexer_amount; i++) {
         printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
         if(pthread_join(index_threads[i], NULL))
@@ -425,7 +426,7 @@ int main(int argc, char * argv[])
         pthread_cond_signal(&indexed_cond);
         
     }
-    
+        
     pthread_join(search_thread, NULL);
     
 	return 0;
