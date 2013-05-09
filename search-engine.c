@@ -103,7 +103,7 @@ void removeFromBufferAndIndex(int thread_number){
         while (word != NULL) {
             //printf("Word inserted: %s\n",word);
             insert_into_index(word, file_name, line_number);
-            word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?",&saveptr);
+            word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?", &saveptr);
         }
         line_number = line_number+1;
     }
@@ -184,6 +184,8 @@ void advSearch(char * input)
     strcpy(file_name, word);
     word = strtok(NULL, " ");
     
+    printf("FILE: %s WORD: %s\n", file_name, word);
+    
     all_results = find_in_index(word);
     if (all_results == NULL) {
         printf("Word not found.\n");
@@ -246,6 +248,7 @@ void startSearch()
     while((c = getchar()) != EOF) {
         input[0] = c;
         adv = FALSE;
+        printf("Search: ");
         fgets(tst, sizeof(tst), stdin);
         for (i=1; i < strlen(tst); i++) {
             input[i] = tst[i-1];
