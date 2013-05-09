@@ -4,7 +4,6 @@
 #include <sys/errno.h>
 #include <math.h>
 #include "index.h"
-#include <pthread.h>
 
 /* Copyright (C) 2002 Christopher Clark <firstname.lastname@cl.cam.ac.uk> */
 
@@ -214,18 +213,6 @@ indexFor(unsigned int tablelength, unsigned int hashvalue) {
 /*define freekey(X) ; */
 
 
-int lock_array_size = 1024;
-
-
-// Create R/W lock
-pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
-
-pthread_rwlock_t * lock_array;
-
-
-
-
-
 /*****************************************************************************/
 /* Copyright (C) 2004 Christopher Clark <firstname.lastname@cl.cam.ac.uk> */
 
@@ -253,7 +240,6 @@ create_hashtable(unsigned int minsize,
                  unsigned int (*hashf) (void*),
                  int (*eqf) (void*,void*))
 {
-    
     struct hashtable *h;
     unsigned int pindex, size = primes[0];
     /* Check requested hashtable isn't too large */
@@ -299,16 +285,6 @@ hashtable_expand(struct hashtable *h)
     struct entry *e;
     struct entry **pE;
     unsigned int newsize, i, index;
-    
-    // Expand lock array as well
-    lock_array_size = lock_array_size * 2;
-    lock_array = malloc(lock_array_size * sizeof(pthread_rwlock_t));
-    
-    // And initialize each lock
-    for (i=0; i < lock_array_size; i++) {
-        pthread_rwlock_init(&lock_array[i], NULL);
-    }
-    
     /* Check we're not hitting max capacity */
     if (h->primeindex == (prime_table_length - 1)) return 0;
     newsize = primes[++(h->primeindex)];
@@ -370,11 +346,6 @@ hashtable_count(struct hashtable *h)
 int
 hashtable_insert(struct hashtable *h, void *k, void *v)
 {
-    int i;
-    
-    pthread_rwlock_init(&rwlock, NULL);
-    pthread_rwlock_wrlock(&rwlock);                                             //WRITE LOCK
-    
     /* This method allows duplicate keys - but they shouldn't be used */
     unsigned int index;
     struct entry *e;
@@ -393,11 +364,7 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
     e->k = k;
     e->v = v;
     e->next = h->table[index];
-    
-    
     h->table[index] = e;
-    
-    pthread_rwlock_unlock(&rwlock);                                             //UNLOCK
     return -1;
 }
 
@@ -405,9 +372,6 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
 void * /* returns value associated with key */
 hashtable_search(struct hashtable *h, void *k)
 {
-    pthread_rwlock_init(&rwlock, NULL);
-    pthread_rwlock_rdlock(&rwlock);                                             //READ LOCK
-    
     struct entry *e;
     unsigned int hashvalue, index;
     hashvalue = hash(h,k);
@@ -419,8 +383,6 @@ hashtable_search(struct hashtable *h, void *k)
         if ((hashvalue == e->h) && (h->eqfn(k, e->k))) return e->v;
         e = e->next;
     }
-    
-    pthread_rwlock_unlock(&rwlock);                                             //UNLOCK
     return NULL;
 }
 
@@ -556,7 +518,7 @@ hashtable_destroy(struct hashtable *h, int free_values)
  */
 
 struct list_head {
-    struct list_head *next, *prev;
+	struct list_head *next, *prev;
 };
 #define LIST_POISON1  ((void *) 0x00100100)
 #define LIST_POISON2  ((void *) 0x00200200)
@@ -569,7 +531,7 @@ struct list_head name = LIST_HEAD_INIT(name)
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 /**
  * container_of - cast a member of a structure out to the containing structure
- * @ptr: the pointer to the member.
+ * @ptr:	the pointer to the member.
  * @type:	the type of the container struct this is embedded in.
  * @member:	the name of the member within the struct.
  *
@@ -580,8 +542,8 @@ const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 
 static inline void INIT_LIST_HEAD(struct list_head *list)
 {
-    list->next = list;
-    list->prev = list;
+	list->next = list;
+	list->prev = list;
 }
 
 /*
@@ -594,20 +556,20 @@ static inline void __list_add(struct list_head *new,
                               struct list_head *prev,
                               struct list_head *next)
 {
-    next->prev = new;
-    new->next = next;
-    new->prev = prev;
-    prev->next = new;
+	next->prev = new;
+	new->next = next;
+	new->prev = prev;
+	prev->next = new;
 }
 
 static inline void list_add(struct list_head *new, struct list_head *head)
 {
-    __list_add(new, head, head->next);
+	__list_add(new, head, head->next);
 }
 
 static inline void list_add_tail(struct list_head *new, struct list_head *head)
 {
-    __list_add(new, head->prev, head);
+	__list_add(new, head->prev, head);
 }
 
 /*
@@ -619,8 +581,8 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
 {
-    next->prev = prev;
-    prev->next = next;
+	next->prev = prev;
+	prev->next = next;
 }
 
 /**
@@ -631,9 +593,9 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
  */
 static inline void list_del(struct list_head *entry)
 {
-    __list_del(entry->prev, entry->next);
-    entry->next = LIST_POISON1;
-    entry->prev = LIST_POISON2;
+	__list_del(entry->prev, entry->next);
+	entry->next = LIST_POISON1;
+	entry->prev = LIST_POISON2;
 }
 
 /**
@@ -672,7 +634,7 @@ pos = n, n = pos->next)
 
 static inline int list_empty(const struct list_head *head)
 {
-    return head->next == head;
+	return head->next == head;
 }
 
 
@@ -826,7 +788,7 @@ index_search_results_t * find_in_index(char * word)
                     results->num_results++;
                 }
             }
-        }
+        }   
     }
     return(results);
 }

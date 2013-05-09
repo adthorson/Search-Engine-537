@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -25,11 +24,25 @@ char hash_error[30] = "Index initialization error\n";
 
 char ** scan_buffer;
 
-pthread_cond_t empty_cond, fill_cond;
+pthread_cond_t empty_cond;
+pthread_cond_t fill_cond;
+pthread_cond_t indexed_cond;
+pthread_cond_t indexed_noticed_cond;
+pthread_cond_t searched_cond;
+
 pthread_mutex_t mutex_one;
+pthread_mutex_t mutex_advanced;
+pthread_mutex_t mutex_test;
+
 int finished_activations;
 
-int buffer_amount, scan_buffer_size, scanning_done;
+int buffer_amount;
+int scan_buffer_size;
+int scanning_done;
+int adv_flag;
+int indexing_done = FALSE;
+int indexing_done_noticed = FALSE;
+int quit_search = FALSE;
 FILE * file_list;
 
 void startScanning();
@@ -99,7 +112,14 @@ void removeFromBufferAndIndex(int thread_number){
         word = strtok_r(buffer, " \n\t-_!@#$%^&*()_+=,./<>?", &saveptr);
         while (word != NULL) {
             //printf("Word inserted: %s\n",word);
+            
+            //TESTING PURPOSES ONLY (using old index.c)
+            //pthread_mutex_lock(&mutex_test);
             insert_into_index(word, file_name, line_number);
+            
+            //TESTING PURPOSES ONLY (using old index.c)
+            //pthread_mutex_unlock(&mutex_test);
+            
             word = strtok_r(NULL, " \n\t-_!@#$%^&*()_+=,./<>?",&saveptr);
         }
         line_number = line_number+1;
@@ -127,7 +147,6 @@ void startScanning()
                 addToBuffer(buffer);
                 continue;
                 // else not actually needed, but used as a safety net
-                
             }else{
                 break;
             }
@@ -155,6 +174,7 @@ void startIndexing(void * thread_number){
         
         while(buffer_amount == 0){
             if(scanning_done){
+                pthread_mutex_unlock(&mutex_one);
                 return;
             }
             
@@ -163,6 +183,48 @@ void startIndexing(void * thread_number){
 	}
 }
 
+/*
+ void advSearch(char * input)
+ {
+ index_search_results_t * all_results;
+ index_search_elem_t result;
+ int num_results;
+ char * file_name;
+ file_name = malloc(512);
+ char * file_name_result;
+ file_name_result = malloc(512);
+ char * word;
+ word = malloc(512);
+ int i, found=0, line_number;
+ 
+ word = strtok(input, " ");
+ strcpy(file_name, word);
+ word = strtok(NULL, " ");
+ 
+ printf("FILE: %s WORD: %s\n", file_name, word);
+ 
+ all_results = find_in_index(word);
+ if (all_results == NULL) {
+ printf("Word not found.\n");
+ }
+ else {
+ num_results = all_results->num_results;
+ for (i=0; i < num_results; i++) {
+ result = all_results->results[i];
+ line_number = result.line_number;
+ file_name_result = result.file_name;
+ int cmp = strncmp(file_name_result, file_name, 512);
+ if (cmp != 0) {
+ continue;
+ }
+ printf("FOUND: %s %d\n", file_name_result, line_number);
+ found = 1;
+ }
+ }
+ if (!found)
+ printf("Word not found.\n");
+ }
+ */
 
 void advSearch(char * input)
 {
@@ -176,6 +238,7 @@ void advSearch(char * input)
     char * word;
     word = malloc(512);
     int i, found=0, line_number;
+    int adv_flag = FALSE;
     
     word = strtok(input, " ");
     strcpy(file_name, word);
@@ -183,26 +246,40 @@ void advSearch(char * input)
     
     printf("FILE: %s WORD: %s\n", file_name, word);
     
-    all_results = find_in_index(word);
-    if (all_results == NULL) {
-        printf("Word not found.\n");
-    }
-    else {
-        num_results = all_results->num_results;
-        for (i=0; i < num_results; i++) {
-            result = all_results->results[i];
-            line_number = result.line_number;
-            file_name_result = result.file_name;
-            int cmp = strncmp(file_name_result, file_name, 512);
-            if (cmp != 0) {
-                continue;
+    while(1){
+        adv_flag = FALSE;
+        all_results = find_in_index(word);
+        if (all_results != NULL) {
+            num_results = all_results->num_results;
+            for (i=0; i < num_results; i++) {
+                result = all_results->results[i];
+                line_number = result.line_number;
+                file_name_result = result.file_name;
+                int cmp = strncmp(file_name_result, file_name, 512);
+                if (cmp != 0) {
+                    continue;
+                }
+                printf("FOUND: %s %d\n", file_name_result, line_number);
+                found = 1;
             }
-            printf("FOUND: %s %d\n", file_name_result, line_number);
-            found = 1;
+            break;
         }
+        
+        pthread_mutex_lock(&mutex_advanced);
+        while(!indexing_done){
+            printf("WAITING FOR INDEXING\n");
+            pthread_cond_wait(&indexed_cond, &mutex_advanced);
+            adv_flag = TRUE;
+            printf("SHOULD BE INDEXED");
+        }
+        printf("ADVANCED: INDEXING IS DONE");
+        pthread_mutex_unlock(&mutex_advanced);
+        if(!adv_flag)
+            break;
     }
-    if (!found)
+    if (!found){
         printf("Word not found.\n");
+    }
 }
 
 
@@ -243,6 +320,7 @@ void startSearch()
     char tst[512];
     
     while((c = getchar()) != EOF) {
+        printf("SEARCH\n");
         input[0] = c;
         adv = FALSE;
         printf("Search: ");
@@ -259,11 +337,13 @@ void startSearch()
                 break;
             }
         }
-        if (adv)
+        if (adv){
             advSearch(input);
-        else
+        }else{
             basicSearch(input);
+        }
     }
+    quit_search = TRUE;
 }
 
 
@@ -311,8 +391,16 @@ int main(int argc, char * argv[])
     }
     
 	pthread_mutex_init(&mutex_one, NULL);
-	pthread_cond_init(&empty_cond, NULL);
+    pthread_mutex_init(&mutex_advanced, NULL);
+    
+    //TESTING PURPOSES ONLY (using old index.c)
+    //pthread_mutex_init(&mutex_test, NULL);
+	
+    pthread_cond_init(&empty_cond, NULL);
 	pthread_cond_init(&fill_cond, NULL);
+    
+    pthread_cond_init(&indexed_cond, NULL);
+    pthread_cond_init(&indexed_noticed_cond, NULL);
     
     finished_activations = 0;
     
@@ -330,6 +418,14 @@ int main(int argc, char * argv[])
             printf("HERE's YOUR PROBLEM!\n");
     }
     
+    indexing_done = TRUE;
+    
+    
+    while(quit_search != TRUE){
+        pthread_cond_signal(&indexed_cond);
+        
+    }
+        
     pthread_join(search_thread, NULL);
     
 	return 0;
