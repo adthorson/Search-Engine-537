@@ -325,7 +325,7 @@ int main(int argc, char * argv[])
     startScanning();
     
     for (i=0; i < indexer_amount; i++) {
-        //printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
+        printf("JOIN %d?\nINDEX Thread %u\n\n",i,index_threads[i]);
         if(pthread_join(index_threads[i], NULL))
             printf("HERE's YOUR PROBLEM!\n");
     }
