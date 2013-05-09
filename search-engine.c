@@ -27,9 +27,6 @@ char ** scan_buffer;
 
 pthread_cond_t empty_cond, fill_cond;
 pthread_mutex_t mutex_one;
-//sem_t mutex_one;
-//sem_t full_buffer;
-//sem_t empty_buffer;
 int finished_activations;
 
 int buffer_amount, scan_buffer_size, scanning_done;
@@ -129,7 +126,8 @@ void startScanning()
                 //printf("Add %d\n",buffer_amount);
                 addToBuffer(buffer);
                 continue;
-            // else not actually needed, but used as a safety net
+                // else not actually needed, but used as a safety net
+                
             }else{
                 break;
             }
@@ -157,7 +155,6 @@ void startIndexing(void * thread_number){
         
         while(buffer_amount == 0){
             if(scanning_done){
-                pthread_mutex_unlock(&mutex_one);
                 return;
             }
             
@@ -217,6 +214,8 @@ void basicSearch(char * input)
     char * file_name;
     int i, line_number;
     
+    printf("%s\n", input);
+    
     all_results = find_in_index(input);
     if (all_results == NULL) {
         printf("Word not found.\n");
@@ -251,6 +250,7 @@ void startSearch()
         for (i=1; i < strlen(tst); i++) {
             input[i] = tst[i-1];
         }
+        input[i] = '\0';
         if(input[strlen(input) - 1] == '\n')
             input[strlen(input) - 1] = '\0';
         for (i=0; i < strlen(input); i++) {

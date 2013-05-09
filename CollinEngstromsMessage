@@ -1,0 +1,20 @@
+Hi all,
+
+As I mentioned on piazza, we'll not be releasing any tests for this project. Instead, I'm attaching the rubric I'll be using to grade your projects. It details what I'll be looking for and the point breakdown for these things.
+
+I've also posted the files I plan to test your indexer on. They are located in the p5 test directory. To use them, you can copy them to your working directory:
+
+    cp -r /u/c/s/cs537-2/tests/p5/provided/grade_files .
+
+
+Note that one of the files - haystack.txt - is quite large, so you'll need some space. For one of the tests on the rubric, I'll be checking to see if your system waits for the indexer to finish a large file (i.e., haystack.txt) before returning the results of the query. Depending how fast your code is (and the system on which it's running), you may need to extend the haystack.txt file to keep your indexer busy. You can do this by copying and pasting the "haystack" strings many times within the file. The string "needle" at the end is what I'll be querying, so make sure there's only one instance of it and that it lives at the end of the file.
+
+As I stated before, I'll be testing your program by hand, so please make sure I can input the queries via stdin as specified in the project guidelines.
+
+I think that's everything you need to know. If something isn't clear, however, please let me know.
+
+Thanks,
+
+
+
+Collin
